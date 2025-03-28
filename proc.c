@@ -221,6 +221,70 @@ fork(void)
   return pid;
 }
 
+// Send SIGINT to all processes with pid > 2
+void
+send_sigint(void)
+{
+  struct proc *p;
+  
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != UNUSED && p->pid > 2) {
+      p->signal = SIGINT;
+      p->killed = 1;
+      if(p->state == SLEEPING)
+        wakeup1(p->chan);
+      // Wake up parent if it's waiting
+      if(p->parent && p->parent->state == SLEEPING)
+        wakeup1(p->parent);
+    }
+  }
+  release(&ptable.lock);
+}
+
+// Send SIGCUSTOM to user process
+void
+send_sigcustom(void)
+{
+  struct proc *p;
+  
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != UNUSED && p->pid > 2) {
+      p->signal = SIGCUSTOM;
+      if(p->state == SLEEPING)
+        wakeup1(p->chan);
+      // Wake up parent if it's waiting
+      if(p->parent && p->parent->state == SLEEPING)
+        wakeup1(p->parent);
+    }
+  }
+  release(&ptable.lock);
+}
+
+// Handle signal for process p
+void
+handle_signal(struct proc *p)
+{
+  if(p->signal == SIGINT) {
+    cprintf("Process killed by Ctrl+C\n");
+    p->killed = 1;
+  } else if(p->signal == SIGCUSTOM && p->handler) {
+    // Save current context
+    struct context *old_context = p->context;
+    
+    // Set up new context for handler
+    p->context->eip = (uint)p->handler;
+    
+    // Execute handler
+    p->handler();
+    
+    // Restore old context
+    p->context = old_context;
+  }
+  p->signal = 0;
+}
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
@@ -233,6 +297,9 @@ exit(void)
 
   if(curproc == initproc)
     panic("init exiting");
+
+  // Handle any pending signals
+  handle_signal(curproc);
 
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){

@@ -1,3 +1,10 @@
+// Signal definitions
+#define SIGINT 2
+#define SIGCUSTOM 3
+
+// Signal handler type definition
+typedef void (*sighandler_t)(void);
+
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -46,6 +53,8 @@ struct proc {
   struct context *context;     // swtch() here to run process
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
+  int signal;                  // Current signal (if any)
+  sighandler_t handler;        // Registered signal handler
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
@@ -56,3 +65,8 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+// Signal handling functions
+void send_sigint(void);        // Send SIGINT to all processes with pid > 2
+void send_sigcustom(void);     // Send SIGCUSTOM to user process
+void handle_signal(struct proc *p);  // Handle signal for process p

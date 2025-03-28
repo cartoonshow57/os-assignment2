@@ -1,6 +1,9 @@
 struct stat;
 struct rtcdate;
 
+// Signal handler type
+typedef void (*sighandler_t)(void);
+
 // system calls
 int fork(void);
 int exit(void) __attribute__((noreturn));
@@ -23,6 +26,7 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int signal(sighandler_t handler);  // Signal handler registration
 
 // ulib.c
 int stat(const char*, struct stat*);

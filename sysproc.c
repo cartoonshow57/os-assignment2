@@ -89,3 +89,17 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// Register a signal handler
+int
+sys_signal(void)
+{
+  sighandler_t handler;
+  
+  if(argptr(0, (void*)&handler, sizeof(handler)) < 0)
+    return -1;
+    
+  struct proc *p = myproc();
+  p->handler = handler;
+  return 0;
+}
